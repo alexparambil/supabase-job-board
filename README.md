@@ -30,7 +30,7 @@ Supports Google OAuth login via Supabase Auth and displays a list of mock job po
 
 [View the deployed app on Vercel](https://supabase-job-board.vercel.app/)
 
-> Replace the link above with your actual Vercel deployment URL
+
 
 ---
 
