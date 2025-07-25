@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import SearchFilters from './components/SearchFilters';
 import JobGrid from './components/JobGrid';
@@ -6,6 +6,8 @@ import PostJobModal from './components/PostJobModal';
 import JobDetailModal from './components/JobDetailModal';
 import { Job } from './types/Job';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { supabase } from './services/supabaseClient';
+import { LoginButton } from './components/LoginButton';
 
 const mockJobs: Job[] = [
   {
@@ -107,19 +109,46 @@ function App() {
     experience: ''
   });
 
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => {
+      listener?.subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
   const handleFilterChange = (newFilters: FilterState) => {
     setFilters(newFilters);
-    
+
     const filtered = jobs.filter(job => {
-      const matchesSearch = job.title.toLowerCase().includes(newFilters.search.toLowerCase()) ||
-                           job.company.toLowerCase().includes(newFilters.search.toLowerCase());
-      const matchesLocation = newFilters.location === '' || job.location.toLowerCase().includes(newFilters.location.toLowerCase());
-      const matchesJobType = newFilters.jobType === '' || job.type === newFilters.jobType;
-      const matchesExperience = newFilters.experience === '' || job.experience === newFilters.experience;
-      
+      const matchesSearch =
+        job.title.toLowerCase().includes(newFilters.search.toLowerCase()) ||
+        job.company.toLowerCase().includes(newFilters.search.toLowerCase());
+
+      const matchesLocation =
+        newFilters.location === '' || job.location.toLowerCase().includes(newFilters.location.toLowerCase());
+
+      const matchesJobType =
+        newFilters.jobType === '' || job.type === newFilters.jobType;
+
+      const matchesExperience =
+        newFilters.experience === '' || job.experience === newFilters.experience;
+
       return matchesSearch && matchesLocation && matchesJobType && matchesExperience;
     });
-    
+
     setFilteredJobs(filtered);
   };
 
@@ -138,22 +167,37 @@ function App() {
   return (
     <ThemeProvider>
       <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors">
+        <div className="flex justify-end px-6 pt-4">
+          {user ? (
+            <div className="text-sm text-gray-800 dark:text-gray-100 flex items-center gap-4">
+              Logged in as <strong>{user.email}</strong>
+              <button
+                onClick={handleLogout}
+                className="bg-red-600 text-white px-3 py-1 rounded"
+              >
+                Logout
+              </button>
+            </div>
+          ) : (
+            <LoginButton />
+          )}
+        </div>
+
         <Header onPostJob={handlePostJob} />
         <main className="container mx-auto px-6 py-8 max-w-6xl">
-          <SearchFilters 
+          <SearchFilters
             filters={filters}
             onFilterChange={handleFilterChange}
           />
-          
           <JobGrid jobs={filteredJobs} onJobClick={handleJobClick} />
         </main>
-        
-        <PostJobModal 
+
+        <PostJobModal
           isOpen={isPostModalOpen}
           onClose={() => setIsPostModalOpen(false)}
         />
 
-        <JobDetailModal 
+        <JobDetailModal
           job={selectedJob}
           isOpen={!!selectedJob}
           onClose={handleCloseJobDetail}
